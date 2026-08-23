@@ -1959,11 +1959,10 @@ class Competition extends ActiveRecord {
 		));
 		$podiums = [];
 		$greaterChinaPodiums = [];
-		$eventFormats = [];
 		foreach ($eventRounds as $eventRound) {
+			$format = LiveResult::getRankingFormat($eventRound->format);
 			$results = $this->getLivePodiumRoundResults($eventRound);
-			LiveResult::assignPositions($results, $eventRound->format);
-			$eventFormats[$eventRound->event] = $eventRound->format;
+			LiveResult::assignPositions($results, $format);
 			foreach ($results as $result) {
 				if ($result->pos <= $this->podiums_num) {
 					$podiums[$eventRound->event][] = clone $result;
@@ -1974,9 +1973,7 @@ class Competition extends ActiveRecord {
 			}
 		}
 		foreach ($greaterChinaPodiums as $event=>$results) {
-			$format = isset($eventFormats[$event]) ? $eventFormats[$event] : 'a';
-			LiveResult::sortResults($results, $format);
-			LiveResult::assignPositions($results, $format);
+			LiveResult::assignPositions($results, 'a');
 			$temp = [];
 			foreach ($results as $result) {
 				if ($result->pos > $this->podiums_num) {
@@ -2051,7 +2048,6 @@ class Competition extends ActiveRecord {
 					}
 				}
 				foreach ($temp as $group=>$results) {
-					LiveResult::sortResults($results, $eventRound->format);
 					LiveResult::assignPositions($results, $eventRound->format);
 					foreach ($results as $result) {
 						if ($result->pos > $this->podiums_num) {
@@ -2108,7 +2104,8 @@ class Competition extends ActiveRecord {
 		if (LiveResult::isLiveCombinedDualPodiumRound($eventRound, $dualRounds)) {
 			return $this->getCombinedPodiumResultModels($dualRounds[0], $dualRounds[1]);
 		}
-		$order = LiveResult::getRankingOrder($eventRound->format);
+		$format = LiveResult::getRankingFormat($eventRound->format);
+		$order = $format == 'b' ? 'best ASC' : 'average > 0 DESC, average ASC, best ASC';
 		return LiveResult::model()->with('user')->findAllByAttributes([
 			'competition_id'=>$this->id,
 			'event'=>$eventRound->event,
@@ -2124,14 +2121,7 @@ class Competition extends ActiveRecord {
 		if ($dualRounds !== array() && $dualRounds[0]->isClosed && $dualRounds[1]->isClosed) {
 			return $this->getCombinedPodiumResultModels($dualRounds[0], $dualRounds[1]);
 		}
-		return LiveResult::model()->with('user')->findAllByAttributes([
-			'competition_id'=>$this->id,
-			'event'=>$eventRound->event,
-			'round'=>$eventRound->round,
-		], [
-			'condition'=>'best > 0',
-			'order'=>LiveResult::getRankingOrder($eventRound->format),
-		]);
+		return $this->getLivePodiumRoundResults($eventRound);
 	}
 
 	public function computeRecords($event, $type = 'best') {

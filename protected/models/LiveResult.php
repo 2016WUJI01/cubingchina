@@ -110,7 +110,7 @@ class LiveResult extends ActiveRecord {
 	 */
 	public static function compareResults($a, $b, $format) {
 		$temp = 0;
-		if (self::getRankingFormat($format) == 'a') {
+		if ($format == 'a' || $format == 'm') {
 			if ($a->average > 0 && $b->average <= 0) {
 				return -1;
 			}
@@ -131,33 +131,16 @@ class LiveResult extends ActiveRecord {
 		return $temp;
 	}
 
-	/**
-	 * Map a WCA format id (or ranking key) to the ranking dimension:
-	 * 'b' = best/single first, 'a' = average first then best.
-	 */
 	public static function getRankingFormat($formatId) {
 		switch ($formatId) {
 			case '1':
 			case '2':
 			case '3':
 			case '5':
-			case 'b':
 				return 'b';
 			default:
 				return 'a';
 		}
-	}
-
-	public static function getRankingOrder($formatId) {
-		return self::getRankingFormat($formatId) == 'b'
-			? 'best ASC'
-			: 'average > 0 DESC, average ASC, best ASC';
-	}
-
-	public static function sortResults(&$results, $format) {
-		usort($results, function($a, $b) use ($format) {
-			return self::compareResults($a, $b, $format);
-		});
 	}
 
 	public static function assignPositions(&$results, $format) {
