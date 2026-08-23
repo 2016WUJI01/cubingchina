@@ -1959,10 +1959,11 @@ class Competition extends ActiveRecord {
 		));
 		$podiums = [];
 		$greaterChinaPodiums = [];
+		$eventFormats = [];
 		foreach ($eventRounds as $eventRound) {
-			$format = LiveResult::getRankingFormat($eventRound->format);
 			$results = $this->getLivePodiumRoundResults($eventRound);
-			LiveResult::assignPositions($results, $format);
+			LiveResult::assignPositions($results, $eventRound->format);
+			$eventFormats[$eventRound->event] = $eventRound->format;
 			foreach ($results as $result) {
 				if ($result->pos <= $this->podiums_num) {
 					$podiums[$eventRound->event][] = clone $result;
@@ -1973,7 +1974,9 @@ class Competition extends ActiveRecord {
 			}
 		}
 		foreach ($greaterChinaPodiums as $event=>$results) {
-			LiveResult::assignPositions($results, 'a');
+			$format = isset($eventFormats[$event]) ? $eventFormats[$event] : 'a';
+			LiveResult::sortResults($results, $format);
+			LiveResult::assignPositions($results, $format);
 			$temp = [];
 			foreach ($results as $result) {
 				if ($result->pos > $this->podiums_num) {
@@ -2048,7 +2051,8 @@ class Competition extends ActiveRecord {
 					}
 				}
 				foreach ($temp as $group=>$results) {
-					LiveResult::assignPositions($results, 'a');
+					LiveResult::sortResults($results, $eventRound->format);
+					LiveResult::assignPositions($results, $eventRound->format);
 					foreach ($results as $result) {
 						if ($result->pos > $this->podiums_num) {
 							break;
@@ -2104,8 +2108,7 @@ class Competition extends ActiveRecord {
 		if (LiveResult::isLiveCombinedDualPodiumRound($eventRound, $dualRounds)) {
 			return $this->getCombinedPodiumResultModels($dualRounds[0], $dualRounds[1]);
 		}
-		$format = LiveResult::getRankingFormat($eventRound->format);
-		$order = $format == 'b' ? 'best ASC' : 'average > 0 DESC, average ASC, best ASC';
+		$order = LiveResult::getRankingOrder($eventRound->format);
 		return LiveResult::model()->with('user')->findAllByAttributes([
 			'competition_id'=>$this->id,
 			'event'=>$eventRound->event,
@@ -2127,7 +2130,7 @@ class Competition extends ActiveRecord {
 			'round'=>$eventRound->round,
 		], [
 			'condition'=>'best > 0',
-			'order'=>'average > 0 DESC, average ASC, best ASC',
+			'order'=>LiveResult::getRankingOrder($eventRound->format),
 		]);
 	}
 
