@@ -2048,7 +2048,7 @@ class Competition extends ActiveRecord {
 					}
 				}
 				foreach ($temp as $group=>$results) {
-					LiveResult::assignPositions($results, 'a');
+					LiveResult::assignPositions($results, $eventRound->format);
 					foreach ($results as $result) {
 						if ($result->pos > $this->podiums_num) {
 							break;
@@ -2121,14 +2121,7 @@ class Competition extends ActiveRecord {
 		if ($dualRounds !== array() && $dualRounds[0]->isClosed && $dualRounds[1]->isClosed) {
 			return $this->getCombinedPodiumResultModels($dualRounds[0], $dualRounds[1]);
 		}
-		return LiveResult::model()->with('user')->findAllByAttributes([
-			'competition_id'=>$this->id,
-			'event'=>$eventRound->event,
-			'round'=>$eventRound->round,
-		], [
-			'condition'=>'best > 0',
-			'order'=>'average > 0 DESC, average ASC, best ASC',
-		]);
+		return $this->getLivePodiumRoundResults($eventRound);
 	}
 
 	public function computeRecords($event, $type = 'best') {
